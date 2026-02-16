@@ -10,7 +10,7 @@ A lightweight Windows 11 system-tray utility that lets you quickly move any wind
 2. **After setup:** WindowShifter runs silently in the system tray.
 3. Press your configured **hotkey** from any application.
 4. A small popup appears showing:
-   - The **title of the currently active window**
+   - The **title of the currently active window** (truncated to 100 characters if too long)
    - A **numbered list of all your virtual desktops** (with names)
    - Which desktop is the **current** one
 5. Press a **number key (1–9)** to instantly move the window to that desktop.
@@ -68,7 +68,9 @@ WindowShifter uses a custom icon (window frame with green arrow) in the system t
 
 - **Double-click** the tray icon to manually open the picker popup.
 - **Right-click** for context menu:
-  - See the current hotkey
+  - **Hotkey** -- shows the current hotkey; click to **change** it (opens setup dialog)
+  - **Remove from Autostart** -- removes WindowShifter from Windows autostart
+  - **GitHub Repository** -- opens the project page in your browser
   - **Exit** -- quit the application
 
 ## Configuration
