@@ -286,12 +286,16 @@ function Show-DesktopPicker {
     $y += 28
 
     $lblTitle = New-Object System.Windows.Forms.Label
-    $lblTitle.Text = $windowTitle
+    $truncatedTitle = $windowTitle
+    if ($truncatedTitle.Length -gt 100) {
+        $truncatedTitle = $truncatedTitle.Substring(0, 97) + "..."
+    }
+    $lblTitle.Text = $truncatedTitle
     $lblTitle.Font = New-Object System.Drawing.Font("Segoe UI", 13, [System.Drawing.FontStyle]::Bold)
     $lblTitle.ForeColor = [System.Drawing.Color]::White
     $lblTitle.Location = New-Object System.Drawing.Point(20, $y)
-    $lblTitle.MaximumSize = New-Object System.Drawing.Size(360, 0)
-    $lblTitle.AutoSize = $true
+    $lblTitle.Size = New-Object System.Drawing.Size(360, 25)
+    $lblTitle.AutoSize = $false
     $form.Controls.Add($lblTitle)
     $y += 40
 
