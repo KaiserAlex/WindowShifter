@@ -398,6 +398,7 @@ function Show-DesktopPicker {
                     $newDesktop = New-Desktop
                     $newDesktop | Set-DesktopName -Name $nameResult
                     Move-Window -Desktop $newDesktop -Hwnd $targetHwnd
+                    Switch-Desktop -Desktop $newDesktop
                 } catch {
                     $errMsg = "Failed to create desktop:`n" + $_.Exception.Message
                     [System.Windows.Forms.MessageBox]::Show(
@@ -438,6 +439,7 @@ function Show-DesktopPicker {
             try {
                 $targetDesktop = Get-Desktop $($num - 1)
                 Move-Window -Desktop $targetDesktop -Hwnd $targetHwnd
+                Switch-Desktop -Desktop $targetDesktop
             } catch {
                 $errMsg = "Failed to move window:`n" + $_.Exception.Message
                 [System.Windows.Forms.MessageBox]::Show(
