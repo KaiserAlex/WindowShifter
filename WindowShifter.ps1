@@ -254,7 +254,7 @@ function Ensure-Autostart {
 # -- Desktop Picker Popup ---------------------------------------------------------
 
 function Show-DesktopPicker {
-    param([IntPtr]$targetHwnd, [string]$windowTitle)
+    param([IntPtr]$targetHwnd, [string]$windowTitle, [switch]$SwitchOnly)
 
     $desktopList = @(Get-DesktopList)
     $currentDesktop = Get-CurrentDesktop
@@ -278,27 +278,34 @@ function Show-DesktopPicker {
     $y = 20
 
     $lblHeader = New-Object System.Windows.Forms.Label
-    $lblHeader.Text = "Move Window To Desktop"
-    $lblHeader.ForeColor = [System.Drawing.Color]::FromArgb(170, 170, 170)
+    if ($SwitchOnly) {
+        $lblHeader.Text = "Switch Desktop"
+        $lblHeader.ForeColor = [System.Drawing.Color]::FromArgb(100, 180, 255)
+    } else {
+        $lblHeader.Text = "Move Window To Desktop"
+        $lblHeader.ForeColor = [System.Drawing.Color]::FromArgb(170, 170, 170)
+    }
     $lblHeader.Font = New-Object System.Drawing.Font("Segoe UI", 10)
     $lblHeader.Location = New-Object System.Drawing.Point(20, $y)
     $lblHeader.AutoSize = $true
     $form.Controls.Add($lblHeader)
     $y += 28
 
-    $lblTitle = New-Object System.Windows.Forms.Label
-    $truncatedTitle = $windowTitle
-    if ($truncatedTitle.Length -gt 100) {
-        $truncatedTitle = $truncatedTitle.Substring(0, 97) + "..."
+    if (-not $SwitchOnly) {
+        $lblTitle = New-Object System.Windows.Forms.Label
+        $truncatedTitle = $windowTitle
+        if ($truncatedTitle.Length -gt 100) {
+            $truncatedTitle = $truncatedTitle.Substring(0, 97) + "..."
+        }
+        $lblTitle.Text = $truncatedTitle
+        $lblTitle.Font = New-Object System.Drawing.Font("Segoe UI", 13, [System.Drawing.FontStyle]::Bold)
+        $lblTitle.ForeColor = [System.Drawing.Color]::White
+        $lblTitle.Location = New-Object System.Drawing.Point(20, $y)
+        $lblTitle.Size = New-Object System.Drawing.Size(360, 25)
+        $lblTitle.AutoSize = $false
+        $form.Controls.Add($lblTitle)
+        $y += 40
     }
-    $lblTitle.Text = $truncatedTitle
-    $lblTitle.Font = New-Object System.Drawing.Font("Segoe UI", 13, [System.Drawing.FontStyle]::Bold)
-    $lblTitle.ForeColor = [System.Drawing.Color]::White
-    $lblTitle.Location = New-Object System.Drawing.Point(20, $y)
-    $lblTitle.Size = New-Object System.Drawing.Size(360, 25)
-    $lblTitle.AutoSize = $false
-    $form.Controls.Add($lblTitle)
-    $y += 40
 
     $sep = New-Object System.Windows.Forms.Label
     $sep.BorderStyle = "Fixed3D"
@@ -333,28 +340,34 @@ function Show-DesktopPicker {
         $y += 30
     }
 
-    # "New Desktop" option
-    $y += 4
-    $sep2 = New-Object System.Windows.Forms.Label
-    $sep2.BorderStyle = "Fixed3D"
-    $sep2.Location = New-Object System.Drawing.Point(20, $y)
-    $sep2.Size = New-Object System.Drawing.Size(340, 2)
-    $form.Controls.Add($sep2)
-    $y += 10
+    # "New Desktop" option (only in move mode)
+    if (-not $SwitchOnly) {
+        $y += 4
+        $sep2 = New-Object System.Windows.Forms.Label
+        $sep2.BorderStyle = "Fixed3D"
+        $sep2.Location = New-Object System.Drawing.Point(20, $y)
+        $sep2.Size = New-Object System.Drawing.Size(340, 2)
+        $form.Controls.Add($sep2)
+        $y += 10
 
-    $lblNew = New-Object System.Windows.Forms.Label
-    $lblNew.Text = "  N   + New Desktop"
-    $lblNew.Font = New-Object System.Drawing.Font("Segoe UI", 12)
-    $lblNew.ForeColor = [System.Drawing.Color]::FromArgb(100, 180, 255)
-    $lblNew.Location = New-Object System.Drawing.Point(20, $y)
-    $lblNew.AutoSize = $true
-    $form.Controls.Add($lblNew)
-    $y += 30
+        $lblNew = New-Object System.Windows.Forms.Label
+        $lblNew.Text = "  N   + New Desktop"
+        $lblNew.Font = New-Object System.Drawing.Font("Segoe UI", 12)
+        $lblNew.ForeColor = [System.Drawing.Color]::FromArgb(100, 180, 255)
+        $lblNew.Location = New-Object System.Drawing.Point(20, $y)
+        $lblNew.AutoSize = $true
+        $form.Controls.Add($lblNew)
+        $y += 30
+    }
 
     $y += 4
 
     $lblHint = New-Object System.Windows.Forms.Label
-    $lblHint.Text = "Press number to move  |  N = new  |  Esc to cancel"
+    if ($SwitchOnly) {
+        $lblHint.Text = "Press number to switch  |  Esc to cancel"
+    } else {
+        $lblHint.Text = "Press number to move  |  N = new  |  Esc to cancel"
+    }
     $lblHint.ForeColor = [System.Drawing.Color]::FromArgb(119, 119, 119)
     $lblHint.Font = New-Object System.Drawing.Font("Segoe UI", 9)
     $lblHint.Location = New-Object System.Drawing.Point(20, $y)
@@ -378,6 +391,8 @@ function Show-DesktopPicker {
         $form.Focus()
     })
 
+    $script:pickerSwitchOnly = $SwitchOnly.IsPresent
+
     $form.Add_KeyDown({
         param($sender, $e)
         if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Escape) {
@@ -385,8 +400,8 @@ function Show-DesktopPicker {
             return
         }
 
-        # Handle "N" key for new desktop
-        if ($e.KeyCode -eq [System.Windows.Forms.Keys]::N) {
+        # Handle "N" key for new desktop (only in move mode)
+        if ((-not $script:pickerSwitchOnly) -and $e.KeyCode -eq [System.Windows.Forms.Keys]::N) {
             $script:pickerHiding = $true
             $form.Hide()
             $nameResult = [Microsoft.VisualBasic.Interaction]::InputBox(
@@ -438,10 +453,16 @@ function Show-DesktopPicker {
         if ($num -ge 1 -and $num -le $maxDesktops) {
             try {
                 $targetDesktop = Get-Desktop $($num - 1)
-                Move-Window -Desktop $targetDesktop -Hwnd $targetHwnd
+                if (-not $script:pickerSwitchOnly) {
+                    Move-Window -Desktop $targetDesktop -Hwnd $targetHwnd
+                }
                 Switch-Desktop -Desktop $targetDesktop
             } catch {
-                $errMsg = "Failed to move window:`n" + $_.Exception.Message
+                if ($script:pickerSwitchOnly) {
+                    $errMsg = "Failed to switch desktop:`n" + $_.Exception.Message
+                } else {
+                    $errMsg = "Failed to move window:`n" + $_.Exception.Message
+                }
                 [System.Windows.Forms.MessageBox]::Show(
                     $errMsg,
                     "WindowShifter",
@@ -541,13 +562,37 @@ if (-not $registered) {
     ) | Out-Null
 }
 
+$script:lastHotkeyTime = [DateTime]::MinValue
+$script:doubleTapThresholdMs = 400
+$script:hotkeyTimer = New-Object System.Windows.Forms.Timer
+$script:hotkeyTimer.Interval = 400
+$script:hotkeyHwnd = [IntPtr]::Zero
+$script:hotkeyTitle = ""
+
+$script:hotkeyTimer.Add_Tick({
+    $script:hotkeyTimer.Stop()
+    Show-DesktopPicker -targetHwnd $script:hotkeyHwnd -windowTitle $script:hotkeyTitle
+})
+
 $hotkeyWindow.Add_HotkeyPressed({
-    $hwnd = [Win32]::GetForegroundWindow()
-    $sb = New-Object System.Text.StringBuilder(256)
-    [Win32]::GetWindowText($hwnd, $sb, 256) | Out-Null
-    $title = $sb.ToString()
-    if ([string]::IsNullOrWhiteSpace($title)) { $title = "(Untitled Window)" }
-    Show-DesktopPicker -targetHwnd $hwnd -windowTitle $title
+    $now = [DateTime]::Now
+    $elapsed = ($now - $script:lastHotkeyTime).TotalMilliseconds
+    $script:lastHotkeyTime = $now
+
+    if ($script:hotkeyTimer.Enabled) {
+        # Second press within threshold - switch only mode
+        $script:hotkeyTimer.Stop()
+        Show-DesktopPicker -targetHwnd $script:hotkeyHwnd -windowTitle $script:hotkeyTitle -SwitchOnly
+    } else {
+        # First press - capture window info and start timer
+        $script:hotkeyHwnd = [Win32]::GetForegroundWindow()
+        $sb = New-Object System.Text.StringBuilder(256)
+        [Win32]::GetWindowText($script:hotkeyHwnd, $sb, 256) | Out-Null
+        $title = $sb.ToString()
+        if ([string]::IsNullOrWhiteSpace($title)) { $title = "(Untitled Window)" }
+        $script:hotkeyTitle = $title
+        $script:hotkeyTimer.Start()
+    }
 })
 
 # -- Custom tray icon --------------------------------------------------------------
