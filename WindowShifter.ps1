@@ -580,6 +580,11 @@ $autostartItem.Add_Click({
 })
 $contextMenu.Items.Add("-") | Out-Null
 
+$contextMenu.Items.Add("GitHub Repository", $null, {
+    Start-Process "https://github.com/KaiserAlex/WindowShifter"
+}) | Out-Null
+$contextMenu.Items.Add("-") | Out-Null
+
 $contextMenu.Items.Add("Exit", $null, {
     [Win32]::UnregisterHotKey($hotkeyWindow.Handle, $HOTKEY_ID) | Out-Null
     $trayIcon.Visible = $false
