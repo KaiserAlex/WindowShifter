@@ -14,7 +14,8 @@ A lightweight Windows 11 system-tray utility that lets you quickly move any wind
    - A **numbered list of all your virtual desktops** (with names)
    - Which desktop is the **current** one
 5. Press a **number key (1–9)** to instantly move the window to that desktop.
-6. Press **`Esc`** or click away to cancel.
+6. Press **`N`** to **create a new desktop** -- you'll be prompted for a name, and the window is automatically moved there.
+7. Press **`Esc`** or click away to cancel.
 
 ## Quick Start
 

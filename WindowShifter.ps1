@@ -10,6 +10,7 @@ param([switch]$NoAutostart)
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName Microsoft.VisualBasic
 
 # -- Win32 Interop -----------------------------------------------------------------
 
@@ -332,10 +333,28 @@ function Show-DesktopPicker {
         $y += 30
     }
 
-    $y += 8
+    # "New Desktop" option
+    $y += 4
+    $sep2 = New-Object System.Windows.Forms.Label
+    $sep2.BorderStyle = "Fixed3D"
+    $sep2.Location = New-Object System.Drawing.Point(20, $y)
+    $sep2.Size = New-Object System.Drawing.Size(340, 2)
+    $form.Controls.Add($sep2)
+    $y += 10
+
+    $lblNew = New-Object System.Windows.Forms.Label
+    $lblNew.Text = "  N   + New Desktop"
+    $lblNew.Font = New-Object System.Drawing.Font("Segoe UI", 12)
+    $lblNew.ForeColor = [System.Drawing.Color]::FromArgb(100, 180, 255)
+    $lblNew.Location = New-Object System.Drawing.Point(20, $y)
+    $lblNew.AutoSize = $true
+    $form.Controls.Add($lblNew)
+    $y += 30
+
+    $y += 4
 
     $lblHint = New-Object System.Windows.Forms.Label
-    $lblHint.Text = "Press number to move  |  Esc to cancel"
+    $lblHint.Text = "Press number to move  |  N = new  |  Esc to cancel"
     $lblHint.ForeColor = [System.Drawing.Color]::FromArgb(119, 119, 119)
     $lblHint.Font = New-Object System.Drawing.Font("Segoe UI", 9)
     $lblHint.Location = New-Object System.Drawing.Point(20, $y)
@@ -362,6 +381,33 @@ function Show-DesktopPicker {
     $form.Add_KeyDown({
         param($sender, $e)
         if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Escape) {
+            $form.Close()
+            return
+        }
+
+        # Handle "N" key for new desktop
+        if ($e.KeyCode -eq [System.Windows.Forms.Keys]::N) {
+            $script:pickerHiding = $true
+            $form.Hide()
+            $nameResult = [Microsoft.VisualBasic.Interaction]::InputBox(
+                "Enter a name for the new desktop:",
+                "WindowShifter - New Desktop",
+                "")
+            if (-not [string]::IsNullOrWhiteSpace($nameResult)) {
+                try {
+                    $newDesktop = New-Desktop
+                    $newDesktop | Set-DesktopName -Name $nameResult
+                    Move-Window -Desktop $newDesktop -Hwnd $targetHwnd
+                } catch {
+                    $errMsg = "Failed to create desktop:`n" + $_.Exception.Message
+                    [System.Windows.Forms.MessageBox]::Show(
+                        $errMsg,
+                        "WindowShifter",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    ) | Out-Null
+                }
+            }
             $form.Close()
             return
         }
@@ -405,7 +451,9 @@ function Show-DesktopPicker {
         }
     })
 
-    $form.Add_Deactivate({ $form.Close() })
+    $script:pickerHiding = $false
+
+    $form.Add_Deactivate({ if (-not $script:pickerHiding) { $form.Close() } })
     $form.KeyPreview = $true
     $form.ShowDialog() | Out-Null
     $form.Dispose()
