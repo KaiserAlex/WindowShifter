@@ -520,10 +520,66 @@ $trayIcon.Text = "WindowShifter - " + $settings.HotkeyDisplay
 $trayIcon.Visible = $true
 
 $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
-$hotkeyLabel = "Hotkey: " + $settings.HotkeyDisplay
+$hotkeyLabel = "Hotkey: " + $settings.HotkeyDisplay + "  (click to change)"
 $hotkeyItem = $contextMenu.Items.Add($hotkeyLabel)
-$hotkeyItem.Enabled = $false
+$hotkeyItem.Add_Click({
+    # Unregister current hotkey
+    [Win32]::UnregisterHotKey($hotkeyWindow.Handle, $HOTKEY_ID) | Out-Null
+
+    # Show setup dialog
+    $settings = Show-HotkeySetup $settings
+    Save-Settings $settings
+
+    # Re-register with new settings
+    $registered = [Win32]::RegisterHotKey($hotkeyWindow.Handle, $HOTKEY_ID, $settings.ModifierKeys, $settings.VirtualKey)
+    if (-not $registered) {
+        $failMsg = "Failed to register hotkey " + $settings.HotkeyDisplay + ".`nAnother application may be using it."
+        [System.Windows.Forms.MessageBox]::Show(
+            $failMsg, "WindowShifter",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        ) | Out-Null
+    }
+
+    # Update tray and menu
+    $trayIcon.Text = "WindowShifter - " + $settings.HotkeyDisplay
+    $hotkeyItem.Text = "Hotkey: " + $settings.HotkeyDisplay + "  (click to change)"
+})
 $contextMenu.Items.Add("-") | Out-Null
+
+# Autostart removal item
+$autostartItem = $contextMenu.Items.Add("Remove from Autostart")
+$autostartItem.Add_Click({
+    try {
+        $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+        $current = Get-ItemProperty -Path $regPath -Name "WindowShifter" -ErrorAction SilentlyContinue
+        if ($current) {
+            Remove-ItemProperty -Path $regPath -Name "WindowShifter" -Force
+            [System.Windows.Forms.MessageBox]::Show(
+                "WindowShifter has been removed from autostart.",
+                "WindowShifter",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            ) | Out-Null
+        } else {
+            [System.Windows.Forms.MessageBox]::Show(
+                "WindowShifter is not in autostart.",
+                "WindowShifter",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            ) | Out-Null
+        }
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Failed to remove from autostart:`n" + $_.Exception.Message,
+            "WindowShifter",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        ) | Out-Null
+    }
+})
+$contextMenu.Items.Add("-") | Out-Null
+
 $contextMenu.Items.Add("Exit", $null, {
     [Win32]::UnregisterHotKey($hotkeyWindow.Handle, $HOTKEY_ID) | Out-Null
     $trayIcon.Visible = $false
