@@ -1,6 +1,6 @@
 # WindowShifter
 
-A lightweight Windows 11 system-tray utility that lets you quickly move any window to a different virtual desktop using a keyboard shortcut.
+A lightweight Windows 11 system-tray utility that lets you quickly manage virtual desktops and move windows between them using a keyboard shortcut.
 
 **No .NET SDK or runtime install needed** -- runs on any Windows 11 machine using PowerShell. The only dependency ([VirtualDesktop module](https://github.com/MScholtes/PSVirtualDesktop)) is auto-installed on first launch.
 
@@ -8,15 +8,29 @@ A lightweight Windows 11 system-tray utility that lets you quickly move any wind
 
 1. **First launch:** A setup dialog lets you choose your preferred hotkey (default: `Ctrl + Shift + W`). WindowShifter also offers to register itself for Windows autostart.
 2. **After setup:** WindowShifter runs silently in the system tray.
-3. Press your configured **hotkey** from any application.
-4. A small popup appears showing:
-   - The **title of the currently active window** (truncated to 100 characters if too long)
-   - A **numbered list of all your virtual desktops** (with names)
-   - Which desktop is the **current** one
-5. Press a **number key (1–9)** to instantly move the window to that desktop and switch to it.
-6. Press **`N`** to **create a new desktop** -- you'll be prompted for a name, and the window is automatically moved there.
-7. **Double-tap the hotkey** (press it twice quickly) to open a **switch-only** popup -- press a number to switch desktops without moving any window.
-8. Press **`Esc`** or click away to cancel.
+3. The hotkey supports three modes depending on how many times you press it:
+
+| Tap | Mode | What it does |
+|-----|------|-------------|
+| **Single** | **Switch Desktop** | Opens a popup to switch to another desktop (no window moved) |
+| **Double** | **Move Window** | Opens a popup to move the active window to another desktop and switch to it |
+| **Triple** | **Close Desktop** | Opens a popup to close/remove a desktop |
+
+### Switch Desktop (single tap)
+- Press your hotkey once. A popup with a blue **"Switch Desktop"** header appears.
+- Press a **number key (1–9)** to switch to that desktop.
+- Press **`Esc`** or click away to cancel.
+
+### Move Window (double tap)
+- Press your hotkey twice quickly. A popup with **"Move Window To Desktop"** header appears showing the active window title.
+- Press a **number key (1–9)** to move the window there and switch to it.
+- Press **`N`** to **create a new desktop** -- you'll be prompted for a name, and the window is automatically moved there.
+- Press **`Esc`** or click away to cancel.
+
+### Close Desktop (triple tap)
+- Press your hotkey three times quickly. A popup with a red **"Close Desktop"** header appears.
+- Press a **number key (1–9)** to close that desktop. Windows on it are moved to an adjacent desktop.
+- Press **`Esc`** or click away to cancel.
 
 ## Quick Start
 

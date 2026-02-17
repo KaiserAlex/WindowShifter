@@ -254,7 +254,7 @@ function Ensure-Autostart {
 # -- Desktop Picker Popup ---------------------------------------------------------
 
 function Show-DesktopPicker {
-    param([IntPtr]$targetHwnd, [string]$windowTitle, [switch]$SwitchOnly)
+    param([IntPtr]$targetHwnd, [string]$windowTitle, [switch]$SwitchOnly, [switch]$CloseMode)
 
     $desktopList = @(Get-DesktopList)
     $currentDesktop = Get-CurrentDesktop
@@ -278,7 +278,10 @@ function Show-DesktopPicker {
     $y = 20
 
     $lblHeader = New-Object System.Windows.Forms.Label
-    if ($SwitchOnly) {
+    if ($CloseMode) {
+        $lblHeader.Text = "Close Desktop"
+        $lblHeader.ForeColor = [System.Drawing.Color]::FromArgb(244, 67, 54)
+    } elseif ($SwitchOnly) {
         $lblHeader.Text = "Switch Desktop"
         $lblHeader.ForeColor = [System.Drawing.Color]::FromArgb(100, 180, 255)
     } else {
@@ -291,7 +294,7 @@ function Show-DesktopPicker {
     $form.Controls.Add($lblHeader)
     $y += 28
 
-    if (-not $SwitchOnly) {
+    if (-not $SwitchOnly -and -not $CloseMode) {
         $lblTitle = New-Object System.Windows.Forms.Label
         $truncatedTitle = $windowTitle
         if ($truncatedTitle.Length -gt 100) {
@@ -341,7 +344,7 @@ function Show-DesktopPicker {
     }
 
     # "New Desktop" option (only in move mode)
-    if (-not $SwitchOnly) {
+    if (-not $SwitchOnly -and -not $CloseMode) {
         $y += 4
         $sep2 = New-Object System.Windows.Forms.Label
         $sep2.BorderStyle = "Fixed3D"
@@ -363,7 +366,9 @@ function Show-DesktopPicker {
     $y += 4
 
     $lblHint = New-Object System.Windows.Forms.Label
-    if ($SwitchOnly) {
+    if ($CloseMode) {
+        $lblHint.Text = "Press number to close desktop  |  Esc to cancel"
+    } elseif ($SwitchOnly) {
         $lblHint.Text = "Press number to switch  |  Esc to cancel"
     } else {
         $lblHint.Text = "Press number to move  |  N = new  |  Esc to cancel"
@@ -392,6 +397,7 @@ function Show-DesktopPicker {
     })
 
     $script:pickerSwitchOnly = $SwitchOnly.IsPresent
+    $script:pickerCloseMode = $CloseMode.IsPresent
 
     $form.Add_KeyDown({
         param($sender, $e)
@@ -401,7 +407,7 @@ function Show-DesktopPicker {
         }
 
         # Handle "N" key for new desktop (only in move mode)
-        if ((-not $script:pickerSwitchOnly) -and $e.KeyCode -eq [System.Windows.Forms.Keys]::N) {
+        if ((-not $script:pickerSwitchOnly) -and (-not $script:pickerCloseMode) -and $e.KeyCode -eq [System.Windows.Forms.Keys]::N) {
             $script:pickerHiding = $true
             $form.Hide()
             $nameResult = [Microsoft.VisualBasic.Interaction]::InputBox(
@@ -453,12 +459,18 @@ function Show-DesktopPicker {
         if ($num -ge 1 -and $num -le $maxDesktops) {
             try {
                 $targetDesktop = Get-Desktop $($num - 1)
-                if (-not $script:pickerSwitchOnly) {
+                if ($script:pickerCloseMode) {
+                    Remove-Desktop -Desktop $targetDesktop
+                } elseif ($script:pickerSwitchOnly) {
+                    Switch-Desktop -Desktop $targetDesktop
+                } else {
                     Move-Window -Desktop $targetDesktop -Hwnd $targetHwnd
+                    Switch-Desktop -Desktop $targetDesktop
                 }
-                Switch-Desktop -Desktop $targetDesktop
             } catch {
-                if ($script:pickerSwitchOnly) {
+                if ($script:pickerCloseMode) {
+                    $errMsg = "Failed to close desktop:`n" + $_.Exception.Message
+                } elseif ($script:pickerSwitchOnly) {
                     $errMsg = "Failed to switch desktop:`n" + $_.Exception.Message
                 } else {
                     $errMsg = "Failed to move window:`n" + $_.Exception.Message
@@ -568,10 +580,17 @@ $script:hotkeyTimer = New-Object System.Windows.Forms.Timer
 $script:hotkeyTimer.Interval = 400
 $script:hotkeyHwnd = [IntPtr]::Zero
 $script:hotkeyTitle = ""
+$script:hotkeyTapCount = 0
 
 $script:hotkeyTimer.Add_Tick({
     $script:hotkeyTimer.Stop()
-    Show-DesktopPicker -targetHwnd $script:hotkeyHwnd -windowTitle $script:hotkeyTitle
+    $taps = $script:hotkeyTapCount
+    $script:hotkeyTapCount = 0
+    switch ($taps) {
+        1 { Show-DesktopPicker -targetHwnd $script:hotkeyHwnd -windowTitle $script:hotkeyTitle -SwitchOnly }
+        2 { Show-DesktopPicker -targetHwnd $script:hotkeyHwnd -windowTitle $script:hotkeyTitle }
+        default { Show-DesktopPicker -targetHwnd $script:hotkeyHwnd -windowTitle $script:hotkeyTitle -CloseMode }
+    }
 })
 
 $hotkeyWindow.Add_HotkeyPressed({
@@ -579,12 +598,14 @@ $hotkeyWindow.Add_HotkeyPressed({
     $elapsed = ($now - $script:lastHotkeyTime).TotalMilliseconds
     $script:lastHotkeyTime = $now
 
-    if ($script:hotkeyTimer.Enabled) {
-        # Second press within threshold - switch only mode
+    if ($script:hotkeyTimer.Enabled -and $elapsed -lt $script:doubleTapThresholdMs) {
+        # Additional press within threshold
         $script:hotkeyTimer.Stop()
-        Show-DesktopPicker -targetHwnd $script:hotkeyHwnd -windowTitle $script:hotkeyTitle -SwitchOnly
+        $script:hotkeyTapCount++
+        $script:hotkeyTimer.Start()
     } else {
         # First press - capture window info and start timer
+        $script:hotkeyTapCount = 1
         $script:hotkeyHwnd = [Win32]::GetForegroundWindow()
         $sb = New-Object System.Text.StringBuilder(256)
         [Win32]::GetWindowText($script:hotkeyHwnd, $sb, 256) | Out-Null
